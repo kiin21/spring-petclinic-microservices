@@ -19,8 +19,8 @@ pipeline {
                         [$class: 'PruneStaleBranch']
                     ],
                     userRemoteConfigs: [[
-                        url: 'https://github.com/BrianTrac/spring-petclinic-microservices.git',
-                        credentialsId: 'jenkins-github-petclinic'
+                        url: 'https://github.com/kiin21/spring-petclinic-microservices.git',
+                        credentialsId: 'github-pat'
                     ]]
                 ])
             }
