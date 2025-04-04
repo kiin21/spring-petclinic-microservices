@@ -8,6 +8,18 @@ pipeline {
     }
 
     stages {
+        stage('Install Lib') {
+            steps {
+                echo 'Installing Maven...'
+
+                sh '''
+                    sudo apt-get update
+                    sudo apt-get install -y maven
+                    mvn -v
+                '''
+            }
+        }
+         
         stage('Checkout Code') {
             steps {
                 checkout([
@@ -205,31 +217,6 @@ pipeline {
                             cd ${service}
                             mvn clean package
                         """
-                    }
-                }
-            }
-        }
-
-        stage('Deploy') {
-            when {
-                expression { AFFECTED_SERVICES != '' }
-            }
-            steps {
-                script {
-                    def userInput = input(
-                        id: 'userApproval',
-                        message: 'Deploy to AWS?',
-                        parameters: [
-                            choice(name: 'Deploy', choices: ['YES', 'NO'], description: 'Select YES to deploy.')
-                        ]
-                    )
-
-                    if (userInput == 'YES') {
-                        echo "Deploying to AWS..."
-                        sh './deploy-to-aws.sh' // Replace with actual deployment script
-                    } else {
-                        echo "Deployment aborted by user."
-                        currentBuild.result = 'ABORTED'
                     }
                 }
             }
