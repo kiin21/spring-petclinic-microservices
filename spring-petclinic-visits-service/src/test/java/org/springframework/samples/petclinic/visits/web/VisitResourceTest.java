@@ -58,4 +58,29 @@ class VisitResourceTest {
             .andExpect(jsonPath("$.items[1].petId").value(222))
             .andExpect(jsonPath("$.items[2].petId").value(222));
     }
+
+    @Test
+    void shouldFetchVisitByPetId() throws Exception {
+        given(visitRepository.findByPetId(111))
+            .willReturn(
+                asList(
+                    Visit.VisitBuilder.aVisit()
+                        .id(10)
+                        .petId(111)
+                        .build(),
+                    Visit.VisitBuilder.aVisit()
+                        .id(11)
+                        .petId(111)
+                        .build()
+                )
+            );
+
+        mvc.perform(get("/owners/abc/pets/111/visits"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(10))
+            .andExpect(jsonPath("$[1].id").value(11))
+            .andExpect(jsonPath("$[0].petId").value(111))
+            .andExpect(jsonPath("$[1].petId").value(111));
+    }
+
 }
