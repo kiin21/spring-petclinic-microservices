@@ -44,7 +44,7 @@ class VisitResourceTest {
                         .build(),
                     Visit.VisitBuilder.aVisit()
                         .id(3)
-                        .petId(222)
+                        .petId(333)
                         .build()
                 )
             );
@@ -56,6 +56,6 @@ class VisitResourceTest {
             .andExpect(jsonPath("$.items[2].id").value(3))
             .andExpect(jsonPath("$.items[0].petId").value(111))
             .andExpect(jsonPath("$.items[1].petId").value(222))
-            .andExpect(jsonPath("$.items[2].petId").value(222));
+            .andExpect(jsonPath("$.items[2].petId").value(333));
     }
 }

@@ -36,7 +36,7 @@ pipeline {
                         'spring-petclinic-api-gateway',
                         'spring-petclinic-config-server',
                         'spring-petclinic-customers-service',
-                    //    'spring-petclinic-discovery-server',  // Note: Fixed name from "service" to "server"
+                        'spring-petclinic-discovery-server',
                         'spring-petclinic-vets-service',
                         'spring-petclinic-visits-service',
                     ]
