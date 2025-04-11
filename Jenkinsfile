@@ -3,8 +3,9 @@ pipeline {
         label 'slave1'
     }
 
-    environment {
-       SONARQUBE_SERVER = 'SonarQube'
+    tools {
+        maven 'Maven-3.9.6'
+        jdk 'OpenJDK-17'
     }
 
     stages {
@@ -35,7 +36,7 @@ pipeline {
                         'spring-petclinic-api-gateway',
                         'spring-petclinic-config-server',
                         'spring-petclinic-customers-service',
-                    //    'spring-petclinic-discovery-server',  // Note: Fixed name from "service" to "server"
+                        'spring-petclinic-discovery-server',
                         'spring-petclinic-vets-service',
                         'spring-petclinic-visits-service',
                     ]
@@ -171,27 +172,6 @@ pipeline {
             }
         }
 
-//         stage('SonarQube Analysis') {
-//             steps {
-//                 withSonarQubeEnv(SONARQUBE_SERVER) {
-//                     sh "mvn sonar:sonar"
-//                 }
-//             }
-//         }
-//
-//         stage('Quality Gate') {
-//             steps {
-//                 script {
-//                     timeout(time: 2, unit: 'MINUTES') {
-//                         def qualityGate = waitForQualityGate()
-//                         if (qualityGate.status != 'OK') {
-//                             error "Pipeline failed due to SonarQube Quality Gate"
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-
         stage('Build') {
             when {
                 expression { AFFECTED_SERVICES != '' }
@@ -210,30 +190,6 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            when {
-                expression { AFFECTED_SERVICES != '' }
-            }
-            steps {
-                script {
-                    def userInput = input(
-                        id: 'userApproval',
-                        message: 'Deploy to AWS?',
-                        parameters: [
-                            choice(name: 'Deploy', choices: ['YES', 'NO'], description: 'Select YES to deploy.')
-                        ]
-                    )
-
-                    if (userInput == 'YES') {
-                        echo "Deploying to AWS..."
-                        sh './deploy-to-aws.sh' // Replace with actual deployment script
-                    } else {
-                        echo "Deployment aborted by user."
-                        currentBuild.result = 'ABORTED'
-                    }
-                }
-            }
-        }
     }
 
     post {
