@@ -135,7 +135,7 @@ pipeline {
                 script {
                     def services = env.AFFECTED_SERVICES.split(' ')
                     def coveragePass = true
-                    // Define valid services
+                   
                     def SKIP_CHECK_COVERAGE_SERVICES = [
                         'spring-petclinic-admin-server',
                         'spring-petclinic-api-gateway',
