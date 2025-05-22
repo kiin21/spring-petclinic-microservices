@@ -18,60 +18,43 @@ pipeline {
         jdk 'OpenJDK-17'
     }
 
-    environment {
-        DOCKER_REGISTRY = 'anhkhoa217'
-        GITHUB_CREDENTIALS_ID = 'github_pat'
-        GKE_CREDENTIALS_ID = 'gke_credentials'
-        DOCKER_HUB_CREDENTIALS_ID = 'dockerhub_credentials'
-        GITHUB_REPO_URL = 'https://github.com/kiin21/spring-petclinic-microservices.git'
-    }
-
     stages {
-        stage('Clone Code') {
+        stage('Checkout Code') {
             steps {
-                script {
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: '**']],
-                        doGenerateSubmoduleConfigurations: false,
-                        extensions: [
-                            [$class: 'CloneOption', noTags: false, depth: 0, shallow: false],
-                            [$class: 'PruneStaleBranch']
-                        ],
-                        userRemoteConfigs: [[
-                            url: env.GITHUB_REPO_URL,
-                            credentialsId: env.GITHUB_CREDENTIALS_ID
-                        ]]
-                    ])
-                    
-                    // Explicitly set GIT_COMMIT if it's not already set
-                    if (!env.GIT_COMMIT) {
-                        env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
-                    }
-                    
-                    echo "Current commit: ${env.GIT_COMMIT}"
-                }
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '**']],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [
+                        [$class: 'CloneOption', noTags: false, depth: 0, shallow: false],
+                        [$class: 'PruneStaleBranch']
+                    ],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/kiin21/spring-petclinic-microservices.git',
+                        credentialsId: 'github_pat'
+                    ]]
+                ])
             }
         }
 
         stage('Detect Changes') {
             steps {
                 script {
-                    def affectedServices = []
+                    // Define valid services
+                    def VALID_SERVICES = [
+                        'spring-petclinic-admin-server',
+                        'spring-petclinic-api-gateway',
+                        'spring-petclinic-config-server',
+                        'spring-petclinic-customers-service',
+                        'spring-petclinic-discovery-server',
+                        'spring-petclinic-vets-service',
+                        'spring-petclinic-visits-service',
+                    ]
 
-                    // Check for tag build first
-                    if (env.TAG_NAME) { // If a tag is present, we assume all services are affected
-                        echo "A new release found with tag ${env.TAG_NAME}"
-                        affectedServices = VALID_SERVICES
-                        AFFECTED_SERVICES = affectedServices.join(' ')
-                        echo "Changed services (tag): ${AFFECTED_SERVICES}"
-                        return
-                    }
-
-                    // Regular build with change detection
+                    // Get the list of changed files between current commit and last successful build
                     def changedFiles = sh(
                         script: """
-                            # Get the last successful commit hash or use HEAD~1
+                            # Get the last successful commit hash or use origin/main if none
                             LAST_COMMIT=\$(git rev-parse HEAD~1 2>/dev/null || git rev-parse origin/main)
 
                             # Get the changed files
@@ -80,86 +63,153 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    if (changedFiles == null || changedFiles.trim().isEmpty()) {
+                    // Handle empty result
+                    if (changedFiles.isEmpty()) {
                         echo "No changes detected."
-                        AFFECTED_SERVICES = ''
+                        env.AFFECTED_SERVICES = ''
                         return
                     }
 
+                    // Determine which services were affected by the changes
+                    def affectedServices = []
                     changedFiles.split("\n").each { file ->
                         VALID_SERVICES.each { service ->
-                            if (file.startsWith("${service}/") && !affectedServices.contains(service)) {
-                                affectedServices.add(service)
-                                echo "Detected changes in ${service}"
+                            if (file.startsWith("${service}/")) {
+                                if (!affectedServices.contains(service)) {
+                                    affectedServices.add(service)
+                                }
                             }
                         }
                     }
 
-                    if (affectedServices.isEmpty()) {
+                    env.AFFECTED_SERVICES = affectedServices.join(' ')
+
+                    if (env.AFFECTED_SERVICES.isEmpty()) {
                         echo "No valid service changes detected. Skipping pipeline."
-                        AFFECTED_SERVICES = ''
-                        return
+                        currentBuild.result = 'SUCCESS'
+                    } else {
+                        echo "Changed services: ${env.AFFECTED_SERVICES}"
                     }
-
-                    def servicesString = affectedServices.join(' ')
-                    AFFECTED_SERVICES = servicesString
-                    echo "ENV_AFFECTED_SERVICES: [${AFFECTED_SERVICES}]"
-                    echo "Changed services: ${servicesString}"
                 }
             }
         }
 
-        stage('Login to DockerHub') {
+        stage('Test') {
             when {
-                expression { return AFFECTED_SERVICES != '' || env.TAG_NAME != null }
-            }
-            steps {
-                withCredentials([usernamePassword(credentialsId: env.DOCKER_HUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                }
-            }
-        }
-
-        stage('Build and Push Docker Images') {
-            when {
-                expression { return AFFECTED_SERVICES != '' || env.TAG_NAME != null }
+                expression { env.AFFECTED_SERVICES != '' }
             }
             steps {
                 script {
-                    def CONTAINER_TAG = env.TAG_NAME ? env.TAG_NAME : env.GIT_COMMIT.take(7)
-                    echo "Using tag: ${CONTAINER_TAG}"
-
-                    echo "Building images for services: ${AFFECTED_SERVICES}"
-                    
-                    // Split the string into an array
-                    def services = AFFECTED_SERVICES.split(' ')
-                                      
+                    def services = env.AFFECTED_SERVICES.split(' ')
                     for (service in services) {
-                        echo "Building and pushing Docker image for ${service}"
+                        echo "Running tests for ${service}"
+                        sh """
+                            if [ -d "${service}" ]; then
+                                cd ${service}
+                                mvn clean verify -P springboot
+                            else
+                                echo "Directory ${service} does not exist!"
+                            fi
+                        """
+
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        env.AFFECTED_SERVICES.split(' ').each { service ->
+                            dir(service) {
+                                // Store JUnit test results
+                                junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+
+                                // Store JaCoCo coverage results
+                                jacoco(
+                                    execPattern: '**/target/jacoco.exec',
+                                    classPattern: '**/target/classes',
+                                    sourcePattern: '**/src/main/java',
+                                )
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Check Coverage') {
+            when {
+                expression { env.AFFECTED_SERVICES != '' }
+            }
+            steps {
+                script {
+                    def services = env.AFFECTED_SERVICES.split(' ')
+                    def coveragePass = true
+                    // Define valid services
+                    def SKIP_CHECK_COVERAGE_SERVICES = [
+                        'spring-petclinic-admin-server',
+                        'spring-petclinic-api-gateway',
+                        'spring-petclinic-config-server',
+                        'spring-petclinic-discovery-server',
+                    ]
+                    for (service in services) {\
+                        if (service in SKIP_CHECK_COVERAGE_SERVICES) {
+                            echo "Skipping coverage check for ${service}."
+                            continue
+                        }
+                        echo "Checking coverage for ${service}..."
+
+                        // Check if the Jacoco XML file exists before parsing
+                        def jacocoFile = "${service}/target/site/jacoco/jacoco.xml"
+                        if (fileExists(jacocoFile)) {
+                            // Improved shell command to extract coverage properly
+                            def coverage = sh(script: """
+                                grep -m 1 -A 1 '<counter type="INSTRUCTION"' ${jacocoFile} |
+                                grep 'missed' |
+                                sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\\1 \\2/' |
+                                awk '{ print (\$2/(\$1+\$2))*100 }'
+                            """, returnStdout: true).trim().toFloat()
+
+                            echo "Code Coverage for ${service}: ${coverage}%"
+
+                            // If coverage is below 70%, mark as failed
+                            if (coverage < 70) {
+                                echo "Coverage for ${service} is below 70%. Build failed!"
+                                coveragePass = false
+                            }
+                        } else {
+                            echo "Jacoco report for ${service} not found. Skipping coverage check."
+                            coveragePass = false
+                        }
+                    }
+
+                    // Fail the build if any service's coverage is below 70%
+                    if (!coveragePass) {
+                        error "Test coverage is below 70% for one or more services. Build failed!"
+                    }
+                }
+            }
+        }
+
+        stage('Build') {
+            when {
+                expression { AFFECTED_SERVICES != '' }
+            }
+            steps {
+                script {
+                    def services = AFFECTED_SERVICES.split(' ')
+                    for (service in services) {
+                        echo "Building ${service}"
                         sh """
                             cd ${service}
-                            mvn clean install -P buildDocker -Dmaven.test.skip=true \
-                                -Ddocker.image.prefix=${env.DOCKER_REGISTRY} \
-                                -Ddocker.image.tag=${CONTAINER_TAG}
-                            docker push ${env.DOCKER_REGISTRY}/${service}:${CONTAINER_TAG}
-                            cd ..
+                            mvn clean package -DskipTests
                         """
                     }
                 }
             }
         }
-
-        stage('Clean Up') {
-            when {
-                expression { return AFFECTED_SERVICES != '' || env.TAG_NAME != null }
-            }
-            steps {
-                sh "docker system prune -af"
-                sh "docker logout"
-                echo "Docker cleanup and logout completed"
-            }
-        }
     }
+
 
     post {
         always {
