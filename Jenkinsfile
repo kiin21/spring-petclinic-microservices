@@ -5,7 +5,7 @@ pipeline {
 
     tools {
         maven 'Maven-3.9.4'
-        jdk 'OpenJDK-21'
+        jdk 'OpenJDK-17'
     }
 
     stages {
@@ -21,7 +21,7 @@ pipeline {
                     ],
                     userRemoteConfigs: [[
                         url: 'https://github.com/kiin21/spring-petclinic-microservices.git',
-                        credentialsId: 'github-pat'
+                        credentialsId: 'github_pat'
                     ]]
                 ])
             }
@@ -135,7 +135,7 @@ pipeline {
                 script {
                     def services = env.AFFECTED_SERVICES.split(' ')
                     def coveragePass = true
-                   
+                    // Define valid services
                     def SKIP_CHECK_COVERAGE_SERVICES = [
                         'spring-petclinic-admin-server',
                         'spring-petclinic-api-gateway',
