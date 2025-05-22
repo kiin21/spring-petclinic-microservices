@@ -1,17 +1,5 @@
-def VALID_SERVICES = [
-    'spring-petclinic-admin-server',
-    'spring-petclinic-api-gateway',
-    'spring-petclinic-config-server',
-    'spring-petclinic-genai-service',
-    'spring-petclinic-customers-service',
-    'spring-petclinic-discovery-server',
-    'spring-petclinic-vets-service',
-    'spring-petclinic-visits-service',
-]
-def AFFECTED_SERVICES = ''
-
 pipeline {
-    agent any
+     agent any
 
     tools {
         maven 'Maven-3.9.4'
@@ -210,12 +198,7 @@ pipeline {
         }
     }
 
-
     post {
-        always {
-            cleanWs()
-            echo "Workspace cleaned"
-        }
         success {
             step([
                 $class: 'GitHubCommitStatusSetter',
