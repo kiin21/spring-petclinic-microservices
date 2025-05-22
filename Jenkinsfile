@@ -28,7 +28,7 @@ pipeline {
         stage('Detect Changes') {
             steps {
                 script {
-                    // Define valid services
+                    // Define valid services.
                     def VALID_SERVICES = [
                         'spring-petclinic-admin-server',
                         'spring-petclinic-api-gateway',
