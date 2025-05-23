@@ -88,7 +88,7 @@ pipeline {
                     }
 
                     if (affectedServices.isEmpty()) {
-                        echo "No valid service changes detected. Skipping pipeline."
+                        echo "No valid service changes detected. Skipping pipeline"
                         AFFECTED_SERVICES = ''
                         return
                     }
