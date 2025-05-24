@@ -217,7 +217,7 @@ pipeline {
                             """
                             echo "Updated tag for ${shortName} to ${env.GIT_COMMIT.take(7)}"
                         }
-                        COMMIT_MSG = "Deploy for branch main with commit ${env.GIT_COMMIT.take(7)}"
+                        COMMIT_MSG = "Deploy for branch main with commit latest"
                         shouldDeploy = true
                     } else if (env.BRANCH_NAME.startsWith('develop')) {
                         echo "Deploying to dev"
