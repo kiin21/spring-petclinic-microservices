@@ -213,7 +213,7 @@ pipeline {
                             def shortCommit = env.GIT_COMMIT.take(7)
                             sh """
                                 cd k8s
-                                sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/prod-values.yaml
+                                sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/dev-values.yaml
                             """
                             echo "Updated tag for ${shortName} to ${env.GIT_COMMIT.take(7)}"
                         }
