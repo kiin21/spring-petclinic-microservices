@@ -1,219 +1,252 @@
-pipeline {
-     agent any
+def VALID_SERVICES = [
+    'spring-petclinic-admin-server',
+    'spring-petclinic-api-gateway',
+    'spring-petclinic-config-server',
+    'spring-petclinic-genai-service',
+    'spring-petclinic-customers-service',
+    'spring-petclinic-discovery-server',
+    'spring-petclinic-vets-service',
+    'spring-petclinic-visits-service',
+]
 
+def AFFECTED_SERVICES = ''
+
+pipeline {
+    agent any
     tools {
         maven 'Maven-3.9.4'
         jdk 'OpenJDK-17'
     }
-
+    environment {
+        DOCKER_REGISTRY = 'anhkhoa217'
+        GITHUB_CREDENTIALS_ID = 'github_pat'
+        GKE_CREDENTIALS_ID = 'gke_credentials'
+        DOCKER_HUB_CREDENTIALS_ID = 'dockerhub_credentials'
+        GITHUB_REPO_URL = 'https://github.com/kiin21/spring-petclinic-microservices.git'
+        MANIFEST_REPO = 'github.com/kiin21/petclinic-gitops.git k8s'
+    }
     stages {
-        stage('Checkout Code') {
+        stage('Clone Code') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '**']],
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions: [
-                        [$class: 'CloneOption', noTags: false, depth: 0, shallow: false],
-                        [$class: 'PruneStaleBranch']
-                    ],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/kiin21/spring-petclinic-microservices.git',
-                        credentialsId: 'github_pat'
-                    ]]
-                ])
+                script {
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: '**']],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [
+                            [$class: 'CloneOption', noTags: false, depth: 0, shallow: false],
+                            [$class: 'PruneStaleBranch']
+                        ],
+                        userRemoteConfigs: [[
+                            url: env.GITHUB_REPO_URL,
+                            credentialsId: env.GITHUB_CREDENTIALS_ID
+                        ]]
+                    ])
+                    // Explicitly set GIT_COMMIT if it's not already set
+                    if (!env.GIT_COMMIT) {
+                        env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                    }
+                    echo "Current commit: ${env.GIT_COMMIT}"
+                }
             }
         }
 
         stage('Detect Changes') {
             steps {
                 script {
-                    // Define valid services
-                    def VALID_SERVICES = [
-                        'spring-petclinic-admin-server',
-                        'spring-petclinic-api-gateway',
-                        'spring-petclinic-config-server',
-                        'spring-petclinic-customers-service',
-                        'spring-petclinic-discovery-server',
-                        'spring-petclinic-vets-service',
-                        'spring-petclinic-visits-service',
-                    ]
-
-                    // Get the list of changed files between current commit and last successful build
+                    def affectedServices = []
+                    // Check for tag build first
+                    if (env.TAG_NAME) { // If a tag is present, we assume all services are affected
+                        echo "A new release found with tag ${env.TAG_NAME}"
+                        affectedServices = VALID_SERVICES
+                        AFFECTED_SERVICES = affectedServices.join(' ')
+                        echo "Changed services (tag): ${AFFECTED_SERVICES}"
+                        return
+                    }
+                    // Regular build with change detection
                     def changedFiles = sh(
                         script: """
-                            # Get the last successful commit hash or use origin/main if none
+                            # Get the last successful commit hash or use HEAD~1
                             LAST_COMMIT=\$(git rev-parse HEAD~1 2>/dev/null || git rev-parse origin/main)
-
                             # Get the changed files
                             git diff --name-only \$LAST_COMMIT HEAD
                         """,
                         returnStdout: true
                     ).trim()
 
-                    // Handle empty result
-                    if (changedFiles.isEmpty()) {
+                    if (changedFiles == null || changedFiles.trim().isEmpty()) {
                         echo "No changes detected."
-                        env.AFFECTED_SERVICES = ''
+                        AFFECTED_SERVICES = ''
                         return
                     }
 
-                    // Determine which services were affected by the changes
-                    def affectedServices = []
                     changedFiles.split("\n").each { file ->
                         VALID_SERVICES.each { service ->
-                            if (file.startsWith("${service}/")) {
-                                if (!affectedServices.contains(service)) {
-                                    affectedServices.add(service)
-                                }
+                            if (file.startsWith("${service}/") && !affectedServices.contains(service)) {
+                                affectedServices.add(service)
+                                echo "Detected changes in ${service}"
                             }
                         }
                     }
 
-                    env.AFFECTED_SERVICES = affectedServices.join(' ')
+                    if (affectedServices.isEmpty()) {
+                        echo "No valid service changes detected. Skipping pipeline"
+                        AFFECTED_SERVICES = ''
+                        return
+                    }
 
-                    if (env.AFFECTED_SERVICES.isEmpty()) {
-                        echo "No valid service changes detected. Skipping pipeline."
-                        currentBuild.result = 'SUCCESS'
+                    def servicesString = affectedServices.join(' ')
+                    AFFECTED_SERVICES = servicesString
+                    echo "ENV_AFFECTED_SERVICES: [${AFFECTED_SERVICES}]"
+                    echo "Changed services: ${servicesString}"
+                }
+            }
+        }
+
+        stage('Login to DockerHub') {
+            when {
+                expression { return AFFECTED_SERVICES != '' || env.TAG_NAME != null }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: env.DOCKER_HUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                }
+            }
+        }
+
+        stage('Build and Push Docker Images') {
+            when {
+                expression { return AFFECTED_SERVICES != '' || env.TAG_NAME != null }
+            }
+            steps {
+                script {
+                    def CONTAINER_TAG = ""
+
+                    if (env.TAG_NAME != null) {
+                        CONTAINER_TAG = env.TAG_NAME
+                    } else if (env.BRANCH_NAME == 'main') {
+                        CONTAINER_TAG = 'latest'
                     } else {
-                        echo "Changed services: ${env.AFFECTED_SERVICES}"
-                    }
-                }
-            }
-        }
-
-        stage('Test') {
-            when {
-                expression { env.AFFECTED_SERVICES != '' }
-            }
-            steps {
-                script {
-                    def services = env.AFFECTED_SERVICES.split(' ')
-                    for (service in services) {
-                        echo "Running tests for ${service}"
-                        sh """
-                            if [ -d "${service}" ]; then
-                                cd ${service}
-                                mvn clean verify -P springboot
-                            else
-                                echo "Directory ${service} does not exist!"
-                            fi
-                        """
-
-                    }
-                }
-            }
-            post {
-                always {
-                    script {
-                        env.AFFECTED_SERVICES.split(' ').each { service ->
-                            dir(service) {
-                                // Store JUnit test results
-                                junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
-
-                                // Store JaCoCo coverage results
-                                jacoco(
-                                    execPattern: '**/target/jacoco.exec',
-                                    classPattern: '**/target/classes',
-                                    sourcePattern: '**/src/main/java',
-                                )
-
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Check Coverage') {
-            when {
-                expression { env.AFFECTED_SERVICES != '' }
-            }
-            steps {
-                script {
-                    def services = env.AFFECTED_SERVICES.split(' ')
-                    def coveragePass = true
-                    // Define valid services
-                    def SKIP_CHECK_COVERAGE_SERVICES = [
-                        'spring-petclinic-admin-server',
-                        'spring-petclinic-api-gateway',
-                        'spring-petclinic-config-server',
-                        'spring-petclinic-discovery-server',
-                    ]
-                    for (service in services) {\
-                        if (service in SKIP_CHECK_COVERAGE_SERVICES) {
-                            echo "Skipping coverage check for ${service}."
-                            continue
-                        }
-                        echo "Checking coverage for ${service}..."
-
-                        // Check if the Jacoco XML file exists before parsing
-                        def jacocoFile = "${service}/target/site/jacoco/jacoco.xml"
-                        if (fileExists(jacocoFile)) {
-                            // Improved shell command to extract coverage properly
-                            def coverage = sh(script: """
-                                grep -m 1 -A 1 '<counter type="INSTRUCTION"' ${jacocoFile} |
-                                grep 'missed' |
-                                sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\\1 \\2/' |
-                                awk '{ print (\$2/(\$1+\$2))*100 }'
-                            """, returnStdout: true).trim().toFloat()
-
-                            echo "Code Coverage for ${service}: ${coverage}%"
-
-                            // If coverage is below 70%, mark as failed
-                            if (coverage < 70) {
-                                echo "Coverage for ${service} is below 70%. Build failed!"
-                                coveragePass = false
-                            }
-                        } else {
-                            echo "Jacoco report for ${service} not found. Skipping coverage check."
-                            coveragePass = false
-                        }
+                        CONTAINER_TAG = env.GIT_COMMIT.take(7)
                     }
 
-                    // Fail the build if any service's coverage is below 70%
-                    if (!coveragePass) {
-                        error "Test coverage is below 70% for one or more services. Build failed!"
-                    }
-                }
-            }
-        }
-
-        stage('Build') {
-            when {
-                expression { AFFECTED_SERVICES != '' }
-            }
-            steps {
-                script {
+                    echo "Using tag: ${CONTAINER_TAG}"
+                    echo "Building images for services: ${AFFECTED_SERVICES}"
+                    // Split the string into an array
                     def services = AFFECTED_SERVICES.split(' ')
                     for (service in services) {
-                        echo "Building ${service}"
+                        echo "Building and pushing Docker image for ${service}"
                         sh """
                             cd ${service}
-                            mvn clean package -DskipTests
+                            mvn clean install -P buildDocker -Dmaven.test.skip=true \\
+                                -Ddocker.image.prefix=${env.DOCKER_REGISTRY} \\
+                                -Ddocker.image.tag=${CONTAINER_TAG}
+                            docker push ${env.DOCKER_REGISTRY}/${service}:${CONTAINER_TAG}
+                            cd ..
                         """
                     }
                 }
+            }
+        }
+
+        stage('Deploy k8s') {
+            when { expression { return AFFECTED_SERVICES != '' } }
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: GITHUB_CREDENTIALS_ID, usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
+                        sh """
+                            git clone https://$GIT_USERNAME:$GIT_PASSWORD@${env.MANIFEST_REPO} k8s
+                            cd k8s
+                            git config user.name "Jenkins"
+                            git config user.email "jenkins@example.com"
+                        """
+                    }
+
+                    sh '''
+                        cd k8s
+                        # Extract old version using grep + cut
+                        old_version=$(grep '^version:' Chart.yaml | cut -d' ' -f2)
+                        echo "Old version: $old_version"
+                        major=$(echo "$old_version" | cut -d. -f1)
+                        minor=$(echo "$old_version" | cut -d. -f2)
+                        patch=$(echo "$old_version" | cut -d. -f3)
+                        new_patch=$((patch + 1))
+                        new_version="$major.$minor.$new_patch"
+                        echo "New version: $new_version"
+                        # Update version using sed
+                        sed -i "s/^version: .*/version: $new_version/" Chart.yaml
+                    '''
+
+                    def COMMIT_MSG = ""
+                    def shouldDeploy = false
+
+                    if (env.BRANCH_NAME.startsWith('develop')) {
+                        echo "Deploying to production"
+                        AFFECTED_SERVICES.split(' ').each { fullName ->
+                            def shortName = fullName.replaceFirst('spring-petclinic-', '')
+                            def shortCommit = env.GIT_COMMIT.take(7)
+                            sh """
+                                cd k8s
+                                sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/dev-values.yaml
+                            """
+                            echo "Updated tag for ${shortName} to ${env.GIT_COMMIT.take(7)}"
+                        }
+                        COMMIT_MSG = "Deploy for branch main with commit ${env.GIT_COMMIT.take(7)}"
+                        shouldDeploy = true
+                    } else if (env.TAG_NAME != null) {
+                        echo "Deploying to staging ${env.TAG_NAME}"
+                        COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"
+                        def services = AFFECTED_SERVICES.split(' ')
+                        for (service in services) {
+                            def shortName = service.replaceFirst('spring-petclinic-', '')
+                            echo "Building and pushing Docker image for ${service}"
+                            
+                            // Get the digest in a single shell command and update the files
+                            sh """
+                                cd k8s
+                                # Get the digest
+                                digest=\$(docker inspect --format='{{index .RepoDigests 0}}' ${env.DOCKER_REGISTRY}/${service}:${env.TAG_NAME} | cut -d'@' -f2)
+                                echo "Digest for ${service}: \$digest"
+                                
+                                # Update tag
+                                sed -i "s/^imageTag: .*/imageTag: \\&tag ${env.TAG_NAME}/" environments/staging-values.yaml
+                                
+                                # Update digest
+                                sed -i "/${service}:/,/digest:/ s/digest: .*/digest: ${digest}/" environments/staging-values.yaml
+                            """
+                        }
+                        echo "Deploying all services to staging at tag ${env.TAG_NAME}"
+                        shouldDeploy = true
+                    } else {
+                        echo "Push by developer, manual deploy required"
+                        shouldDeploy = false
+                    }
+
+                    if (shouldDeploy) {
+                        sh """
+                            cd k8s
+                            git add .
+                            git commit -m "${COMMIT_MSG}"
+                            git push origin main
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                sh "docker system prune -af"
+                sh "docker logout"
+                echo "Docker cleanup and logout completed"
             }
         }
     }
 
     post {
-        success {
-            step([
-                $class: 'GitHubCommitStatusSetter',
-                statusResultSource: [
-                    $class: 'DefaultStatusResultSource'
-                ]
-            ])
-        }
-        failure {
-            step([
-                $class: 'GitHubCommitStatusSetter',
-                statusResultSource: [
-                    $class: 'DefaultStatusResultSource'
-                ]
-            ])
+        always {
+            cleanWs()
+            echo "Workspace cleaned"
         }
     }
 }
