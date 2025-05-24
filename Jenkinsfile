@@ -205,13 +205,13 @@ pipeline {
                                 cd k8s
                                 # Get the digest
                                 digest=\$(docker inspect --format='{{index .RepoDigests 0}}' ${env.DOCKER_REGISTRY}/${service}:${env.TAG_NAME} | cut -d'@' -f2)
-                                echo "Digest for ${service}: \$digest"
+                                echo "Digest for ${shortName}: \$digest"
                                 
                                 # Update tag
                                 sed -i "s/^imageTag: .*/imageTag: \\&tag ${env.TAG_NAME}/" environments/staging-values.yaml
                                 
                                 # Update digest
-                                sed -i "/${service}:/,/digest:/ s/digest: .*/digest: \$digest/" environments/staging-values.yaml
+                                sed -i "/${shortName}:/,/digest:/ s/digest: .*/digest: \$digest/" environments/staging-values.yaml
                             """
                         }
                         echo "Deploying all services to staging at tag ${env.TAG_NAME}"
