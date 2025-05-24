@@ -232,20 +232,16 @@ pipeline {
                 }
             }
         }
-
-        stage('Clean Up') {
-            steps {
-                sh "docker system prune -af"
-                sh "docker logout"
-                echo "Docker cleanup and logout completed"
-            }
-        }
     }
 
     post {
         always {
             cleanWs()
             echo "Workspace cleaned"
+            
+            sh "docker system prune -af"
+            sh "docker logout"
+            echo "Docker cleanup and logout completed"
         }
     }
 }
