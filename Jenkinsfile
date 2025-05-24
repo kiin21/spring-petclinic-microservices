@@ -211,7 +211,7 @@ pipeline {
                                 sed -i "s/^imageTag: .*/imageTag: \\&tag ${env.TAG_NAME}/" environments/staging-values.yaml
                                 
                                 # Update digest
-                                sed -i "/${service}:/,/digest:/ s/digest: .*/digest: ${digest}/" environments/staging-values.yaml
+                                sed -i "/${service}:/,/digest:/ s/digest: .*/digest: \$digest/" environments/staging-values.yaml
                             """
                         }
                         echo "Deploying all services to staging at tag ${env.TAG_NAME}"
