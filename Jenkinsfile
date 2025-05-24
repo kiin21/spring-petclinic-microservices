@@ -230,7 +230,7 @@ pipeline {
                             """
                             echo "Updated tag for ${shortName} to ${env.GIT_COMMIT.take(7)}"
                         }
-                        COMMIT_MSG = "Deploy for branch main with commit ${env.GIT_COMMIT.take(7)}"
+                        COMMIT_MSG = "Deploy for branch dev with commit ${env.GIT_COMMIT.take(7)}"
                         shouldDeploy = true
                     } else {
                         echo "Push by developer, manual deploy required"
