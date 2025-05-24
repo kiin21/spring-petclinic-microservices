@@ -210,7 +210,7 @@ pipeline {
                         echo "Deploying to production"
                         AFFECTED_SERVICES.split(' ').each { fullName ->
                             def shortName = fullName.replaceFirst('spring-petclinic-', '')
-                            def shortCommit = env.GIT_COMMIT.take(7)
+                            def shortCommit = 'latest'
                             sh """
                                 cd k8s
                                 sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/dev-values.yaml
