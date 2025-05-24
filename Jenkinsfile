@@ -154,14 +154,13 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: GITHUB_CREDENTIALS_ID, usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
-                        sh '''
-                            git clone https://$GIT_USERNAME:$GIT_PASSWORD@${env.MANIFEST_REPO} k8s
+                        sh """
+                            git clone https://\$GIT_USERNAME:\$GIT_PASSWORD@${env.MANIFEST_REPO} k8s
                             cd k8s
                             git config user.name "Jenkins"
                             git config user.email "jenkins@example.com"
-                        '''
+                        """
                     }
-
                     sh '''
                         cd k8s
                         # Extract old version using grep + cut
