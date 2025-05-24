@@ -23,6 +23,7 @@ pipeline {
         GKE_CREDENTIALS_ID = 'gke_credentials'
         DOCKER_HUB_CREDENTIALS_ID = 'dockerhub_credentials'
         GITHUB_REPO_URL = 'https://github.com/kiin21/spring-petclinic-microservices.git'
+        MANIFEST_REPO = 'github.com/kiin21/petclinic-gitops.git k8s'
     }
     stages {
         stage('Clone Code') {
@@ -49,6 +50,7 @@ pipeline {
                 }
             }
         }
+
         stage('Detect Changes') {
             steps {
                 script {
@@ -118,7 +120,16 @@ pipeline {
             }
             steps {
                 script {
-                    def CONTAINER_TAG = env.TAG_NAME ? env.TAG_NAME : env.GIT_COMMIT.take(7)
+                    def CONTAINER_TAG = ""
+
+                    if (env.TAG_NAME != null) {
+                        CONTAINER_TAG = env.TAG_NAME
+                    } else if (env.BRANCH_NAME == 'main') {
+                        CONTAINER_TAG = 'latest'
+                    } else {
+                        CONTAINER_TAG = env.GIT_COMMIT.take(7)
+                    }
+
                     echo "Using tag: ${CONTAINER_TAG}"
                     echo "Building images for services: ${AFFECTED_SERVICES}"
                     // Split the string into an array
@@ -143,12 +154,12 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: GITHUB_CREDENTIALS_ID, usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PASSWORD')]) {
-                        sh '''
-                            git clone https://$GIT_USERNAME:$GIT_PASSWORD@github.com/kiin21/petclinic-gitops.git k8s
+                        sh """
+                            git clone https://$GIT_USERNAME:$GIT_PASSWORD@${env.MANIFEST_REPO} k8s
                             cd k8s
                             git config user.name "Jenkins"
                             git config user.email "jenkins@example.com"
-                        '''
+                        """
                     }
 
                     sh '''
@@ -169,7 +180,7 @@ pipeline {
                     def COMMIT_MSG = ""
                     def shouldDeploy = false
 
-                    if (env.BRANCH_NAME == 'main') {
+                    if (env.BRANCH_NAME.startsWith('develop')) {
                         echo "Deploying to production"
                         AFFECTED_SERVICES.split(' ').each { fullName ->
                             def shortName = fullName.replaceFirst('spring-petclinic-', '')
@@ -201,7 +212,7 @@ pipeline {
                                 sed -i "s/^imageTag: .*/imageTag: \\&tag ${env.TAG_NAME}/" environments/staging-values.yaml
                                 
                                 # Update digest
-                                sed -i "s/^imageDigest: .*/imageDigest: \\&digest \$digest/" environments/staging-values.yaml
+                                sed -i "/${service}:/,/digest:/ s/digest: .*/digest: ${digest}/" environments/staging-values.yaml
                             """
                         }
                         echo "Deploying all services to staging at tag ${env.TAG_NAME}"
@@ -235,7 +246,6 @@ pipeline {
     post {
         always {
             cleanWs()
-            
             echo "Workspace cleaned"
         }
     }
