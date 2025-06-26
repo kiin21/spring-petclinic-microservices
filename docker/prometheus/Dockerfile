@@ -1,2 +1,2 @@
-FROM prom/prometheus:v2.4.2
+FROM prom/prometheus:latest
 ADD prometheus.yml /etc/prometheus/
