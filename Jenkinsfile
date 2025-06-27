@@ -179,7 +179,7 @@ pipeline {
                     def COMMIT_MSG = ""
                     def shouldDeploy = false
                     if (env.TAG_NAME != null) { // check for tag
-
+                        echo "BRANCH IS: ${env.BRANCH_NAME}"
                         if (env.BRANCH_NAME == 'main') {
                             echo "Deploying to production for tag ${env.TAG_NAME}"
                             COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"
@@ -193,10 +193,11 @@ pipeline {
                                 sh """
                                     cd k8s
                                     # Replace tag
-                                    sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/dev-values.yaml
+                                    sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/prod-values.yaml
                                 """
                             }
                             echo "Deploying all services to production at tag ${env.TAG_NAME}"
+
                         } else {
                             echo "Deploying to staging for tag ${env.TAG_NAME}"
                             COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"

@@ -23,9 +23,9 @@ import java.util.List;
  * @author Oded Shopen
  */
 public record PetDetails(
-                int id,
-                String name,
-                String birthDate,
-                PetType type,
-                List<VisitDetails> visits) {
+        int id,
+        String name,
+        String birthDate,
+        PetType type,
+        List<VisitDetails> visits) {
 }
