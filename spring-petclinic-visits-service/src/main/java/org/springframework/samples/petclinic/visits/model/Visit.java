@@ -80,7 +80,6 @@ public class Visit {
         this.petId = petId;
     }
 
-
     public static final class VisitBuilder {
         private Integer id;
         private Date date;

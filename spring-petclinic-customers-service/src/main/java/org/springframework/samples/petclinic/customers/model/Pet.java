@@ -57,13 +57,13 @@ public class Pet {
     @Override
     public String toString() {
         return new ToStringCreator(this)
-            .append("id", this.getId())
-            .append("name", this.getName())
-            .append("birthDate", this.getBirthDate())
-            .append("type", this.getType().getName())
-            .append("ownerFirstname", this.getOwner().getFirstName())
-            .append("ownerLastname", this.getOwner().getLastName())
-            .toString();
+                .append("id", this.getId())
+                .append("name", this.getName())
+                .append("birthDate", this.getBirthDate())
+                .append("type", this.getType().getName())
+                .append("ownerFirstname", this.getOwner().getFirstName())
+                .append("ownerLastname", this.getOwner().getLastName())
+                .toString();
     }
 
     public Integer getId() {
@@ -108,13 +108,14 @@ public class Pet {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Pet pet = (Pet) o;
         return Objects.equals(id, pet.id)
-            && Objects.equals(name, pet.name)
-            && Objects.equals(birthDate, pet.birthDate)
-            && Objects.equals(type, pet.type)
-            && Objects.equals(owner, pet.owner);
+                && Objects.equals(name, pet.name)
+                && Objects.equals(birthDate, pet.birthDate)
+                && Objects.equals(type, pet.type)
+                && Objects.equals(owner, pet.owner);
     }
 
     @Override

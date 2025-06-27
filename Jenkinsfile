@@ -23,7 +23,7 @@ pipeline {
         GKE_CREDENTIALS_ID = 'gke_credentials'
         DOCKER_HUB_CREDENTIALS_ID = 'dockerhub_credentials'
         GITHUB_REPO_URL = 'https://github.com/kiin21/spring-petclinic-microservices.git'
-        MANIFEST_REPO = 'https://github.com/kiin21/petclinic-manifests.git'
+        MANIFEST_REPO = 'github.com/kiin21/petclinic-manifests.git'
     }
     stages {
         stage('Clone Code') {
@@ -56,12 +56,10 @@ pipeline {
                 script {
                     def affectedServices = []
                     // Check for tag build first
-                    if (env.TAG_NAME || env.BRANCH_NAME == 'main') { // If a tag is present or push to main, we assume all services are affected
-                        if (env.TAG_NAME) {
-                            echo "A new release found with tag ${env.TAG_NAME}"
-                        } else {
-                            echo "Main branch build detected"
-                        }
+                    if (env.TAG_NAME) { // If a tag is present, we assume all services are affected
+
+                        echo "Found tag ${env.TAG_NAME}"
+   
                         affectedServices = VALID_SERVICES
                         AFFECTED_SERVICES = affectedServices.join(' ')
                         echo "Changed services: ${AFFECTED_SERVICES}"
@@ -128,8 +126,6 @@ pipeline {
 
                     if (env.TAG_NAME != null) {
                         CONTAINER_TAG = env.TAG_NAME
-                    } else if (env.BRANCH_NAME == 'main') {
-                        CONTAINER_TAG = 'latest'
                     } else {
                         CONTAINER_TAG = env.GIT_COMMIT.take(7)
                     }
@@ -183,41 +179,51 @@ pipeline {
                     def COMMIT_MSG = ""
                     def shouldDeploy = false
                     if (env.TAG_NAME != null) { // check for tag
-                        echo "Deploying to staging ${env.TAG_NAME}"
-                        COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"
-                        def services = AFFECTED_SERVICES.split(' ')
-                        for (service in services) {
-                            def shortName = service.replaceFirst('spring-petclinic-', '')
-                            echo "Building and pushing Docker image for ${shortName}"
-                            
-                            // Get the digest in a single shell command and update the files
-                            sh """
-                                cd k8s
-                                # Get the digest
-                                digest=\$(docker inspect --format='{{index .RepoDigests 0}}' ${env.DOCKER_REGISTRY}/${service}:${env.TAG_NAME} | cut -d'@' -f2)
-                                echo "Digest for ${shortName}: \$digest"
+
+                        if (env.BRANCH_NAME == 'main') {
+                            echo "Deploying to production for tag ${env.TAG_NAME}"
+                            COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"
+                            def services = AFFECTED_SERVICES.split(' ')
+                            for (service in services) {
+                                // Extract the short name of the service
+                                def shortName = service.replaceFirst('spring-petclinic-', '')
+                                echo "Building and pushing Docker image for ${shortName}"
                                 
-                                # Update tag
-                                sed -i "s/^imageTag: .*/imageTag: \\&tag ${env.TAG_NAME}/" environments/staging-values.yaml
+                                // Get the digest in a single shell command and update the files
+                                sh """
+                                    cd k8s
+                                    # Replace tag
+                                    sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/dev-values.yaml
+                                """
+                            }
+                            echo "Deploying all services to production at tag ${env.TAG_NAME}"
+                        } else {
+                            echo "Deploying to staging for tag ${env.TAG_NAME}"
+                            COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"
+                            def services = AFFECTED_SERVICES.split(' ')
+                            for (service in services) {
+                                // Extract the short name of the service
+                                def shortName = service.replaceFirst('spring-petclinic-', '')
+                                echo "Building and pushing Docker image for ${shortName}"
                                 
-                                # Update digest
-                                sed -i "/${shortName}:/,/digest:/ s/digest: .*/digest: \$digest/" environments/staging-values.yaml
-                            """
+                                // Get the digest in a single shell command and update the files
+                                sh """
+                                    cd k8s
+                                    # Get the digest
+                                    digest=\$(docker inspect --format='{{index .RepoDigests 0}}' ${env.DOCKER_REGISTRY}/${service}:${env.TAG_NAME} | cut -d'@' -f2)
+                                    echo "Digest for ${shortName}: \$digest"
+                                    
+                                    # Update tag
+                                    sed -i "s/^imageTag: .*/imageTag: \\&tag ${env.TAG_NAME}/" environments/staging-values.yaml
+                                    
+                                    # Update digest
+                                    sed -i "/${shortName}:/,/digest:/ s/digest: .*/digest: \$digest/" environments/staging-values.yaml
+                                """
+                            }
+                            echo "Deploying all services to staging at tag ${env.TAG_NAME}"
                         }
-                        echo "Deploying all services to staging at tag ${env.TAG_NAME}"
-                        shouldDeploy = true
-                    } else if (env.BRANCH_NAME == 'main') {
-                        echo "Deploying to production"
-                        AFFECTED_SERVICES.split(' ').each { fullName ->
-                            def shortName = fullName.replaceFirst('spring-petclinic-', '')
-                            def shortCommit = 'latest'
-                            sh """
-                                cd k8s
-                                sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/dev-values.yaml
-                            """
-                            echo "Updated tag for ${shortName} to ${env.GIT_COMMIT.take(7)}"
-                        }
-                        COMMIT_MSG = "Deploy for branch main with commit latest"
+
+
                         shouldDeploy = true
                     } else if (env.BRANCH_NAME.startsWith('develop')) {
                         echo "Deploying to dev"

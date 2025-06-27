@@ -23,21 +23,20 @@ import java.util.List;
  * @author Maciej Szarlinski
  */
 public record OwnerDetails(
-    int id,
-    String firstName,
-    String lastName,
-    String address,
-    String city,
-    String telephone,
-    List<PetDetails> pets) {
+        int id,
+        String firstName,
+        String lastName,
+        String address,
+        String city,
+        String telephone,
+        List<PetDetails> pets) {
 
     @JsonIgnore
     public List<Integer> getPetIds() {
         return pets.stream()
-            .map(PetDetails::id)
-            .toList();
+                .map(PetDetails::id)
+                .toList();
     }
-
 
     public static final class OwnerDetailsBuilder {
         private int id;

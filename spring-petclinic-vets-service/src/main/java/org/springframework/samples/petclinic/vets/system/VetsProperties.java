@@ -24,11 +24,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "vets")
 public record VetsProperties(
-    Cache cache
-) {
-    public record Cache(
-        int ttl,
-        int heapSize
-    ) {
-    }
+                Cache cache) {
+        public record Cache(
+                        int ttl,
+                        int heapSize) {
+        }
 }

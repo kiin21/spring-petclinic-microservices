@@ -15,7 +15,6 @@
  */
 package org.springframework.samples.petclinic.api.dto;
 
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,11 +22,11 @@ import java.util.List;
  * @author Maciej Szarlinski
  */
 public record PetDetails(
-    int id,
-    String name,
-    String birthDate,
-    PetType type,
-    List<VisitDetails> visits) {
+        int id,
+        String name,
+        String birthDate,
+        PetType type,
+        List<VisitDetails> visits) {
 
     public PetDetails {
         if (visits == null) {

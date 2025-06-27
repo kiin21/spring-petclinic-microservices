@@ -18,9 +18,9 @@ package org.springframework.samples.petclinic.api.dto;
 /**
  * @author Maciej Szarlinski
  */
-public record VisitDetails (
-    Integer id,
-    Integer petId,
-    String date,
-    String description) {
+public record VisitDetails(
+                Integer id,
+                Integer petId,
+                String date,
+                String description) {
 }

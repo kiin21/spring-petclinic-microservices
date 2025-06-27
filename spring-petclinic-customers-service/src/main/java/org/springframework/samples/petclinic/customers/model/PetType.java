@@ -20,7 +20,7 @@ import jakarta.persistence.*;
 /**
  * @author Juergen Hoeller
  * @author Ramazan Sakin
- * Can be Cat, Dog, Hamster...
+ *         Can be Cat, Dog, Hamster...
  */
 @Entity
 @Table(name = "types")

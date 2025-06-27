@@ -54,11 +54,11 @@ class PetResource {
     @PostMapping("/owners/{ownerId}/pets")
     @ResponseStatus(HttpStatus.CREATED)
     public Pet processCreationForm(
-        @RequestBody PetRequest petRequest,
-        @PathVariable("ownerId") @Min(1) int ownerId) {
+            @RequestBody PetRequest petRequest,
+            @PathVariable("ownerId") @Min(1) int ownerId) {
 
         Owner owner = ownerRepository.findById(ownerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Owner " + ownerId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Owner " + ownerId + " not found"));
 
         final Pet pet = new Pet();
         owner.addPet(pet);
@@ -79,7 +79,7 @@ class PetResource {
         pet.setBirthDate(petRequest.birthDate());
 
         petRepository.findPetTypeById(petRequest.typeId())
-            .ifPresent(pet::setType);
+                .ifPresent(pet::setType);
 
         log.info("Saving pet {}", pet);
         return petRepository.save(pet);
@@ -91,10 +91,9 @@ class PetResource {
         return new PetDetails(pet);
     }
 
-
     private Pet findPetById(int petId) {
         return petRepository.findById(petId)
-            .orElseThrow(() -> new ResourceNotFoundException("Pet " + petId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Pet " + petId + " not found"));
     }
 
 }

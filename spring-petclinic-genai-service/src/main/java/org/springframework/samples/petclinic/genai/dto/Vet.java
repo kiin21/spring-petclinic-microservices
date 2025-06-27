@@ -23,8 +23,8 @@ import java.util.Set;
  * @author Oded Shopen
  */
 public record Vet(
-    Integer id,
-    String firstName,
-    String lastName,
-    Set<Specialty> specialties) {
+                Integer id,
+                String firstName,
+                String lastName,
+                Set<Specialty> specialties) {
 }
