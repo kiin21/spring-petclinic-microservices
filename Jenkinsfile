@@ -200,7 +200,7 @@ pipeline {
                                 sh """
                                     cd k8s
                                     # Replace tag
-                                    sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/prod-values.yaml
+                                    sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${env.TAG_NAME}}/}' environments/prod-values.yaml
                                 """
                             }
                             echo "Deploying all services to production at tag ${env.TAG_NAME}"
