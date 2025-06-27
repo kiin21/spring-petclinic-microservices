@@ -27,5 +27,4 @@ record PetRequest(int id,
         @JsonFormat(pattern = "yyyy-MM-dd") Date birthDate,
         @Size(min = 1) String name,
         int typeId) {
-
 }
