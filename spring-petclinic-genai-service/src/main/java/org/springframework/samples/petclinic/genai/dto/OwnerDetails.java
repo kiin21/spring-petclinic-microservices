@@ -23,11 +23,11 @@ import java.util.List;
  * @author Oded Shopen
  */
 public record OwnerDetails(
-        int id,
-        String firstName,
-        String lastName,
-        String address,
-        String city,
-        String telephone,
-        List<PetDetails> pets) {
+                int id,
+                String firstName,
+                String lastName,
+                String address,
+                String city,
+                String telephone,
+                List<PetDetails> pets) {
 }
