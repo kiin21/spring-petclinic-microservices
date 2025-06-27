@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License..
+ * limitations under the License.
  */
 package org.springframework.samples.petclinic.customers.web;
 
@@ -24,7 +24,7 @@ import java.util.Date;
  * @author mszarlinski@bravurasolutions.com on 2016-12-05.
  */
 record PetRequest(int id,
-        @JsonFormat(pattern = "yyyy-MM-dd") Date birthDate,
-        @Size(min = 1) String name,
-        int typeId) {
+                @JsonFormat(pattern = "yyyy-MM-dd") Date birthDate,
+                @Size(min = 1) String name,
+                int typeId) {
 }
