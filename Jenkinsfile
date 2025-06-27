@@ -176,27 +176,26 @@ pipeline {
                         sed -i "s/^version: .*/version: $new_version/" Chart.yaml
                     '''
 
-                    actualBranch = sh(
-                        script: "git branch -r --contains ${env.TAG_NAME} | grep -v HEAD | head -1 | sed 's/.*origin\\///g' | xargs",
-                        returnStdout: true
-                    ).trim()
-                    echo "Detected tag ${env.TAG_NAME} on branch ${actualBranch}"
-
+                    def actualBranch = ""
                     def COMMIT_MSG = ""
                     def shouldDeploy = false
-                    if (env.TAG_NAME != null) { // check for tag
-
+                    
+                    if (env.TAG_NAME != null && env.TAG_NAME != '') { // check for tag
+                        actualBranch = sh(
+                            script: "git branch -r --contains ${env.TAG_NAME} | grep -v HEAD | head -1 | sed 's/.*origin\\///g' | xargs",
+                            returnStdout: true
+                        ).trim()
+                        echo "Detected tag ${env.TAG_NAME} on branch ${actualBranch}"
 
                         if (actualBranch == 'main') {
                             echo "Deploying to production for tag ${env.TAG_NAME}"
-                            COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"
+                            COMMIT_MSG = "Deploy to production for tag: ${env.TAG_NAME}"
                             def services = AFFECTED_SERVICES.split(' ')
                             for (service in services) {
                                 // Extract the short name of the service
                                 def shortName = service.replaceFirst('spring-petclinic-', '')
-                                echo "Building and pushing Docker image for ${shortName}"
+                                echo "Updating ${shortName} for production deployment"
                                 
-                                // Get the digest in a single shell command and update the files
                                 sh """
                                     cd k8s
                                     # Replace tag
@@ -207,14 +206,13 @@ pipeline {
 
                         } else {
                             echo "Deploying to staging for tag ${env.TAG_NAME}"
-                            COMMIT_MSG = "Deploy for tag: ${env.TAG_NAME}"
+                            COMMIT_MSG = "Deploy to staging for tag: ${env.TAG_NAME}"
                             def services = AFFECTED_SERVICES.split(' ')
                             for (service in services) {
                                 // Extract the short name of the service
                                 def shortName = service.replaceFirst('spring-petclinic-', '')
-                                echo "Building and pushing Docker image for ${shortName}"
+                                echo "Updating ${shortName} for staging deployment"
                                 
-                                // Get the digest in a single shell command and update the files
                                 sh """
                                     cd k8s
                                     # Get the digest
@@ -230,11 +228,11 @@ pipeline {
                             }
                             echo "Deploying all services to staging at tag ${env.TAG_NAME}"
                         }
-
-
                         shouldDeploy = true
-                    } else if (actualBranch.startsWith('develop')) {
-                        echo "Deploying to dev"
+                        
+                    } else if (env.BRANCH_NAME && env.BRANCH_NAME.startsWith('develop')) {
+                        echo "Deploying to dev from branch ${env.BRANCH_NAME}"
+                        actualBranch = env.BRANCH_NAME
                         AFFECTED_SERVICES.split(' ').each { fullName ->
                             def shortName = fullName.replaceFirst('spring-petclinic-', '')
                             def shortCommit = env.GIT_COMMIT.take(7)
@@ -242,12 +240,14 @@ pipeline {
                                 cd k8s
                                 sed -i '/${shortName}:/{n;n;s/tag:.*/tag: ${shortCommit}/}' environments/dev-values.yaml
                             """
-                            echo "Updated tag for ${shortName} to ${env.GIT_COMMIT.take(7)}"
+                            echo "Updated tag for ${shortName} to ${shortCommit}"
                         }
-                        COMMIT_MSG = "Deploy for branch dev with commit ${env.GIT_COMMIT.take(7)}"
+                        COMMIT_MSG = "Deploy to dev for branch ${env.BRANCH_NAME} with commit ${env.GIT_COMMIT.take(7)}"
                         shouldDeploy = true
+                        
                     } else {
-                        echo "Push by developer, manual deploy required"
+                        actualBranch = env.BRANCH_NAME ?: 'unknown'
+                        echo "Push from branch ${actualBranch}, manual deploy required"
                         shouldDeploy = false
                     }
 
