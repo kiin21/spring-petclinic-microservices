@@ -18,3 +18,17 @@ vets:
   cache:
     ttl: 10
     heap-size: 10
+
+# Disable management endpoints for tests
+management:
+  endpoints:
+    enabled-by-default: false
+  endpoint:
+    health:
+      enabled: true
+
+# Simple logging levels for tests
+logging:
+  level:
+    org.springframework.samples.petclinic: INFO
+    org.springframework.web: WARN
