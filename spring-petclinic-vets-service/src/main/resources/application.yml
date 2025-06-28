@@ -6,7 +6,7 @@ spring:
   cache:
     cache-names: vets
   profiles:
-    active: production
+    active: docker  # ← Change this line in application.yml
 
 ---
 spring:
