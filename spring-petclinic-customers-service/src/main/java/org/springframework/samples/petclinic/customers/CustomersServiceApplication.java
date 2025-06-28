@@ -26,6 +26,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @SpringBootApplication
 public class CustomersServiceApplication {
 
+	// This is test comment
+
 	public static void main(String[] args) {
 		SpringApplication.run(CustomersServiceApplication.class, args);
 	}
