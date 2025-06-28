@@ -41,6 +41,10 @@ spring:
           filters:
             - StripPrefix=2
             - CircuitBreaker=name=genaiCircuitBreaker,fallbackUri=/fallback
+    # Move loadbalancer config under the existing cloud: section
+    loadbalancer:
+      retry:
+        enabled: false
 
 # Global configuration to disable retries
 management:
@@ -52,14 +56,8 @@ management:
       exposure:
         include: gateway
 
-# Disable Spring Cloud LoadBalancer retries
-spring:
-  cloud:
-    loadbalancer:
-      retry:
-        enabled: false
-
 ---
+# Docker profile configuration
 spring:
   config:
     activate:
