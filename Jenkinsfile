@@ -154,7 +154,7 @@ pipeline {
                             sh """
                                 if [ -d "${service}" ]; then
                                     cd ${service}
-                                    mvn clean verify -P springboot
+                                    mvn clean verify -P buildDocker
                                 else
                                     echo "Directory ${service} does not exist!"
                                 fi
