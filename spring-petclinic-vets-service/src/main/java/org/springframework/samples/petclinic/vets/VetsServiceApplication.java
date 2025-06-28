@@ -29,7 +29,7 @@ import org.springframework.samples.petclinic.vets.system.VetsProperties;
 @EnableConfigurationProperties(VetsProperties.class)
 public class VetsServiceApplication {
 
-	// This is test comment 1
+	// This is test comment 2
 
 	public static void main(String[] args) {
 		SpringApplication.run(VetsServiceApplication.class, args);
