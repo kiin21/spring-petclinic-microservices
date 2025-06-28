@@ -5,7 +5,7 @@ datasources:
     type: prometheus
     access: proxy
     org_id: 1
-    url: http://prometheus-server:9090
+    url: http://prometheus:9090
     is_default: true
     version: 1
     editable: true
@@ -14,6 +14,6 @@ datasources:
     type: loki
     access: proxy
     org_id: 1
-    url: http://loki-server:3100
+    url: http://loki:3100
     version: 1
     editable: true
