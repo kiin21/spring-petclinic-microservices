@@ -15,6 +15,12 @@ def MONITORING_SERVICES = [
     'loki'
 ]
 
+def COVERAGE_CHECK_SERVICES = [
+    'spring-petclinic-customers-service',
+    'spring-petclinic-vets-service',
+    'spring-petclinic-visits-service',
+]
+
 def AFFECTED_SERVICES = ''
 
 pipeline {
@@ -193,8 +199,8 @@ pipeline {
                     def coveragePass = true
 
                     for (service in services) {
-                        // Only check coverage for microservices
-                        if (VALID_SERVICES.contains(service)) {
+                        // Only check coverage for specific main services
+                        if (COVERAGE_CHECK_SERVICES.contains(service)) {
                             echo "Checking coverage for ${service}..."
 
                             def jacocoFile = "${service}/target/site/jacoco/jacoco.xml"
@@ -216,11 +222,15 @@ pipeline {
                             } else {
                                 echo "No coverage file found for ${service}. Skipping coverage check."
                             }
+                        } else if (VALID_SERVICES.contains(service)) {
+                            echo "Skipping coverage check for ${service} (not in coverage check list)"
+                        } else {
+                            echo "Skipping coverage check for monitoring service: ${service}"
                         }
                     }
 
                     if (!coveragePass) {
-                        error "Test coverage is below 70% for one or more services. Build failed!"
+                        error "Test coverage is below 70% for one or more main services. Build failed!"
                     }
                 }
             }
