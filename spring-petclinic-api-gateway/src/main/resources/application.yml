@@ -12,7 +12,7 @@ spring:
             fallbackUri: forward:/fallback
         - name: Retry
           args:
-            retries: 1
+            retries: 0
             statuses: SERVICE_UNAVAILABLE
             methods: POST
       routes:

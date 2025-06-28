@@ -134,6 +134,98 @@ pipeline {
             }
         }
 
+        stage('Test') {
+            when {
+                expression { return AFFECTED_SERVICES != '' }
+            }
+            steps {
+                script {
+                    def services = AFFECTED_SERVICES.split(' ')
+                    for (service in services) {
+                        // Only test microservices, skip monitoring services
+                        if (VALID_SERVICES.contains(service)) {
+                            echo "Running tests for ${service}"
+                            sh """
+                                if [ -d "${service}" ]; then
+                                    cd ${service}
+                                    mvn clean verify -P springboot
+                                else
+                                    echo "Directory ${service} does not exist!"
+                                fi
+                            """
+                        } else {
+                            echo "Skipping tests for monitoring service: ${service}"
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        AFFECTED_SERVICES.split(' ').each { service ->
+                            if (VALID_SERVICES.contains(service) && fileExists("${service}/target/surefire-reports")) {
+                                dir(service) {
+                                    // Store JUnit test results
+                                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+
+                                    // Store JaCoCo coverage results
+                                    jacoco(
+                                        execPattern: '**/target/jacoco.exec',
+                                        classPattern: '**/target/classes',
+                                        sourcePattern: '**/src/main/java',
+                                        exclusionPattern: '**/config/**, **/dto/**, **/entity/**, **/exception/**, **/utils/**, **/generated/**'
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Check Coverage') {
+            when {
+                expression { return AFFECTED_SERVICES != '' }
+            }
+            steps {
+                script {
+                    def services = AFFECTED_SERVICES.split(' ')
+                    def coveragePass = true
+
+                    for (service in services) {
+                        // Only check coverage for microservices
+                        if (VALID_SERVICES.contains(service)) {
+                            echo "Checking coverage for ${service}..."
+
+                            def jacocoFile = "${service}/target/site/jacoco/jacoco.xml"
+                            if (fileExists(jacocoFile)) {
+                                def coverage = sh(script: """
+                                    grep -m 1 -A 1 '<counter type="INSTRUCTION"' ${jacocoFile} |
+                                    grep 'missed' |
+                                    sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\\1 \\2/' |
+                                    awk '{ print (\$2/(\$1+\$2))*100 }'
+                                """, returnStdout: true).trim()
+
+                                def coverageFloat = coverage as Float
+                                echo "Code Coverage for ${service}: ${coverageFloat}%"
+
+                                if (coverageFloat < 70) {
+                                    echo "Coverage for ${service} is below 70%. Build failed!"
+                                    coveragePass = false
+                                }
+                            } else {
+                                echo "No coverage file found for ${service}. Skipping coverage check."
+                            }
+                        }
+                    }
+
+                    if (!coveragePass) {
+                        error "Test coverage is below 70% for one or more services. Build failed!"
+                    }
+                }
+            }
+        }
+
         stage('Login to DockerHub') {
             when {
                 expression { return AFFECTED_SERVICES != '' || env.TAG_NAME != null }
