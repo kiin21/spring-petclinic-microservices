@@ -10,11 +10,11 @@ spring:
           args:
             name: defaultCircuitBreaker
             fallbackUri: forward:/fallback
-        - name: Retry
-          args:
-            retries: 0
-            statuses: SERVICE_UNAVAILABLE
-            methods: POST
+        # - name: Retry
+        #   args:
+        #     retries: 0
+        #     statuses: SERVICE_UNAVAILABLE
+        #     methods: POST
       routes:
         - id: vets-service
           uri: lb://vets-service
@@ -41,6 +41,23 @@ spring:
           filters:
             - StripPrefix=2
             - CircuitBreaker=name=genaiCircuitBreaker,fallbackUri=/fallback
+
+# Global configuration to disable retries
+management:
+  endpoint:
+    gateway:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: gateway
+
+# Disable Spring Cloud LoadBalancer retries
+spring:
+  cloud:
+    loadbalancer:
+      retry:
+        enabled: false
 
 ---
 spring:
