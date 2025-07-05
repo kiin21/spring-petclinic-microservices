@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 1
+ * limitations under the License.
  */
 package org.springframework.samples.petclinic.api.dto;
 
@@ -19,8 +19,8 @@ package org.springframework.samples.petclinic.api.dto;
  * @author Maciej Szarlinski
  */
 public record VisitDetails(
-        Integer id,
-        Integer petId,
-        String date,
-        String description) {
+                Integer id,
+                Integer petId,
+                String date,
+                String description) {
 }
