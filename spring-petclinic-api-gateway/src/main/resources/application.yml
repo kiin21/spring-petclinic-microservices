@@ -10,11 +10,11 @@ spring:
           args:
             name: defaultCircuitBreaker
             fallbackUri: forward:/fallback
-        # - name: Retry
-        #   args:
-        #     retries: 1
-        #     statuses: SERVICE_UNAVAILABLE
-        #     methods: POST
+        - name: Retry
+          args:
+            retries: 1
+            statuses: SERVICE_UNAVAILABLE
+            methods: POST
       routes:
         - id: vets-service
           uri: lb://vets-service
@@ -41,23 +41,8 @@ spring:
           filters:
             - StripPrefix=2
             - CircuitBreaker=name=genaiCircuitBreaker,fallbackUri=/fallback
-    # Move loadbalancer config under the existing cloud: section
-    loadbalancer:
-      retry:
-        enabled: false
-
-# Global configuration to disable retries
-management:
-  endpoint:
-    gateway:
-      enabled: true
-  endpoints:
-    web:
-      exposure:
-        include: gateway
 
 ---
-# Docker profile configuration
 spring:
   config:
     activate:
