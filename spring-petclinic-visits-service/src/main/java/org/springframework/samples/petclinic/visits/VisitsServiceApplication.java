@@ -26,8 +26,6 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @SpringBootApplication
 public class VisitsServiceApplication {
 
-    // This is test comment 3 2
-
     public static void main(String[] args) {
         SpringApplication.run(VisitsServiceApplication.class, args);
         System.out.println("Spring Petclinic Visits Service is running!");

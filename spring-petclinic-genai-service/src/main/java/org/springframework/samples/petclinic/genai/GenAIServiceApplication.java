@@ -28,6 +28,6 @@ public class GenAIServiceApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(GenAIServiceApplication.class, args);
-		System.out.println("Spring Petclinic GenAI Service is running!");
+		System.out.println("Spring Petclinic GenAI Service is running!.");
 	}
 }
