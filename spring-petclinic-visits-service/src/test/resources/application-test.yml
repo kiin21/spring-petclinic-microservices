@@ -13,6 +13,17 @@ spring:
 eureka:
   client:
     enabled: false
+# Disable management endpoints for tests
+management:
+  endpoints:
+    enabled-by-default: false
+  endpoint:
+    health:
+      enabled: true
 
-logging.level.org.springframework: INFO
+# Simple logging levels for tests
+logging:
+  level:
+    org.springframework.samples.petclinic: INFO
+    org.springframework.web: WARN
 
