@@ -30,5 +30,6 @@ public class VisitsServiceApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(VisitsServiceApplication.class, args);
+        System.out.println("Spring Petclinic Visits Service is running!");
     }
 }

@@ -28,5 +28,6 @@ public class DiscoveryServerApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DiscoveryServerApplication.class, args);
+		System.out.println("Spring Petclinic Discovery Server is running!");
 	}
 }
