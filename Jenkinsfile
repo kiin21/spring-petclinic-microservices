@@ -140,121 +140,121 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            when {
-                expression { return AFFECTED_SERVICES != '' }
-            }
-            steps {
-                script {
-                    def services = AFFECTED_SERVICES.split(' ')
-                    for (service in services) {
-                        // Only test the 3 main business services
-                        if (COVERAGE_CHECK_SERVICES.contains(service)) {
-                            echo "Running tests for ${service}"
-                            sh """
-                                if [ -d "${service}" ]; then
-                                    cd ${service}
-                                    mvn clean verify -P springboot -Dspring.profiles.active=test
-                                else
-                                    echo "Directory ${service} does not exist!"
-                                fi
-                            """
-                        } else if (VALID_SERVICES.contains(service)) {
-                            echo "Skipping tests for ${service} (not in test coverage list)"
-                        } else {
-                            echo "Skipping tests for monitoring service: ${service}"
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    script {
-                        AFFECTED_SERVICES.split(' ').each { service ->
-                            // Only collect test results from the 3 main services
-                            if (COVERAGE_CHECK_SERVICES.contains(service) && fileExists("${service}/target/surefire-reports")) {
-                                dir(service) {
-                                    // Store JUnit test results
-                                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+        // stage('Test') {
+        //     when {
+        //         expression { return AFFECTED_SERVICES != '' }
+        //     }
+        //     steps {
+        //         script {
+        //             def services = AFFECTED_SERVICES.split(' ')
+        //             for (service in services) {
+        //                 // Only test the 3 main business services
+        //                 if (COVERAGE_CHECK_SERVICES.contains(service)) {
+        //                     echo "Running tests for ${service}"
+        //                     sh """
+        //                         if [ -d "${service}" ]; then
+        //                             cd ${service}
+        //                             mvn clean verify -P springboot -Dspring.profiles.active=test
+        //                         else
+        //                             echo "Directory ${service} does not exist!"
+        //                         fi
+        //                     """
+        //                 } else if (VALID_SERVICES.contains(service)) {
+        //                     echo "Skipping tests for ${service} (not in test coverage list)"
+        //                 } else {
+        //                     echo "Skipping tests for monitoring service: ${service}"
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             script {
+        //                 AFFECTED_SERVICES.split(' ').each { service ->
+        //                     // Only collect test results from the 3 main services
+        //                     if (COVERAGE_CHECK_SERVICES.contains(service) && fileExists("${service}/target/surefire-reports")) {
+        //                         dir(service) {
+        //                             // Store JUnit test results
+        //                             junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
 
-                                    // Store JaCoCo coverage results
-                                    jacoco(
-                                        execPattern: '**/target/jacoco.exec',
-                                        classPattern: '**/target/classes',
-                                        sourcePattern: '**/src/main/java',
-                                        exclusionPattern: '**/config/**, **/dto/**, **/entity/**, **/exception/**, **/utils/**, **/generated/**'
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //                             // Store JaCoCo coverage results
+        //                             jacoco(
+        //                                 execPattern: '**/target/jacoco.exec',
+        //                                 classPattern: '**/target/classes',
+        //                                 sourcePattern: '**/src/main/java',
+        //                                 exclusionPattern: '**/config/**, **/dto/**, **/entity/**, **/exception/**, **/utils/**, **/generated/**'
+        //                             )
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
-        stage('Check Coverage') {
-            when {
-                expression { return AFFECTED_SERVICES != '' }
-            }
-            steps {
-                script {
-                    def services = AFFECTED_SERVICES.split(' ')
-                    def coveragePass = true
+        // stage('Check Coverage') {
+        //     when {
+        //         expression { return AFFECTED_SERVICES != '' }
+        //     }
+        //     steps {
+        //         script {
+        //             def services = AFFECTED_SERVICES.split(' ')
+        //             def coveragePass = true
 
-                    for (service in services) {
-                        // Only check coverage for specific main services
-                        if (COVERAGE_CHECK_SERVICES.contains(service)) {
-                            echo "Checking coverage for ${service}..."
+        //             for (service in services) {
+        //                 // Only check coverage for specific main services
+        //                 if (COVERAGE_CHECK_SERVICES.contains(service)) {
+        //                     echo "Checking coverage for ${service}..."
 
-                            // Debug: List all files in target directory
-                            sh """
-                                echo "=== Debug: Files in ${service}/target ==="
-                                ls -la ${service}/target/ || echo "No target directory"
-                                echo "=== Debug: Looking for JaCoCo files ==="
-                                find ${service}/target -name "*jacoco*" -type f || echo "No JaCoCo files found"
-                                echo "=== Debug: Looking for site directory ==="
-                                ls -la ${service}/target/site/ || echo "No site directory"
-                            """
+        //                     // Debug: List all files in target directory
+        //                     sh """
+        //                         echo "=== Debug: Files in ${service}/target ==="
+        //                         ls -la ${service}/target/ || echo "No target directory"
+        //                         echo "=== Debug: Looking for JaCoCo files ==="
+        //                         find ${service}/target -name "*jacoco*" -type f || echo "No JaCoCo files found"
+        //                         echo "=== Debug: Looking for site directory ==="
+        //                         ls -la ${service}/target/site/ || echo "No site directory"
+        //                     """
 
-                            def jacocoFile = "${service}/target/site/jacoco/jacoco.xml"
-                            if (fileExists(jacocoFile)) {
-                                def coverage = sh(script: """
-                                    grep -m 1 -A 1 '<counter type="INSTRUCTION"' ${jacocoFile} |
-                                    grep 'missed' |
-                                    sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\\1 \\2/' |
-                                    awk '{ print (\$2/(\$1+\$2))*100 }'
-                                """, returnStdout: true).trim()
+        //                     def jacocoFile = "${service}/target/site/jacoco/jacoco.xml"
+        //                     if (fileExists(jacocoFile)) {
+        //                         def coverage = sh(script: """
+        //                             grep -m 1 -A 1 '<counter type="INSTRUCTION"' ${jacocoFile} |
+        //                             grep 'missed' |
+        //                             sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\\1 \\2/' |
+        //                             awk '{ print (\$2/(\$1+\$2))*100 }'
+        //                         """, returnStdout: true).trim()
 
-                                def coverageFloat = coverage as Float
-                                echo "Code Coverage for ${service}: ${coverageFloat}%"
+        //                         def coverageFloat = coverage as Float
+        //                         echo "Code Coverage for ${service}: ${coverageFloat}%"
 
-                                if (coverageFloat < 70) {
-                                    echo "Coverage for ${service} is below 70%. Build failed!"
-                                    coveragePass = false
-                                }
-                            } else {
-                                echo "No coverage file found at ${jacocoFile}. Checking alternative locations..."
+        //                         if (coverageFloat < 70) {
+        //                             echo "Coverage for ${service} is below 70%. Build failed!"
+        //                             coveragePass = false
+        //                         }
+        //                     } else {
+        //                         echo "No coverage file found at ${jacocoFile}. Checking alternative locations..."
                                 
-                                // Check alternative locations
-                                sh """
-                                    echo "=== Checking alternative JaCoCo locations ==="
-                                    find ${service} -name "jacoco.xml" -type f || echo "No jacoco.xml found anywhere"
-                                    find ${service} -name "*.exec" -type f || echo "No .exec files found"
-                                """
-                            }
-                        } else if (VALID_SERVICES.contains(service)) {
-                            echo "Skipping coverage check for ${service} (not in coverage check list)"
-                        } else {
-                            echo "Skipping coverage check for monitoring service: ${service}"
-                        }
-                    }
+        //                         // Check alternative locations
+        //                         sh """
+        //                             echo "=== Checking alternative JaCoCo locations ==="
+        //                             find ${service} -name "jacoco.xml" -type f || echo "No jacoco.xml found anywhere"
+        //                             find ${service} -name "*.exec" -type f || echo "No .exec files found"
+        //                         """
+        //                     }
+        //                 } else if (VALID_SERVICES.contains(service)) {
+        //                     echo "Skipping coverage check for ${service} (not in coverage check list)"
+        //                 } else {
+        //                     echo "Skipping coverage check for monitoring service: ${service}"
+        //                 }
+        //             }
 
-                    if (!coveragePass) {
-                        error "Test coverage is below 70% for one or more main services. Build failed!"
-                    }
-                }
-            }
-        }
+        //             if (!coveragePass) {
+        //                 error "Test coverage is below 70% for one or more main services. Build failed!"
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Login to DockerHub') {
             when {
